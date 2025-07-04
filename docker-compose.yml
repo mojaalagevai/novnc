@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  ubuntu-hehe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7860:7860"
+    container_name: ubuntu-hehe
+    environment:
+      - DISPLAY=:0
+    volumes:
+      - /dev/shm:/dev/shm
+    privileged: true
+    command: /bin/bash -c "Xvfb :0 -screen 0 1920x1080x24 & /setup.sh && /opt/google/chrome-remote-desktop/chrome-remote-desktop --start && /hehe.sh"
