@@ -1,41 +1,67 @@
-# Use official Ubuntu 20.04 as base
+# Use Ubuntu 20.04 as the base image
 FROM ubuntu:20.04
 
-# Set non-interactive frontend
+# Set environment variables to avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies
-RUN apt update && \
-    apt install -y sudo wget curl xvfb x11vnc xfce4 firefox dbus-x11 tigervnc-standalone-server tigervnc-viewer
+# Update package lists and install basic dependencies
+RUN apt-get update && apt-get install -y \
+    bash \
+    wget \
+    expect \
+    python3-psutil \
+    xbase-clients \
+    xvfb \
+    nautilus \
+    nano \
+    xscreensaver \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create user and set password
+# Create a user 'user' with password 'preetygoodpassword:)'
 RUN useradd -m user && \
-    echo 'user:user' | chpasswd && \
-    usermod -aG sudo user
+    usermod -aG sudo user && \
+    echo 'user:preetygoodpassword:)' | chpasswd
 
-# Switch to user
-USER user
-WORKDIR /home/user
+# Install Ubuntu desktop environment (takes 5-10 minutes)
+RUN apt-get update && apt-get install -y ubuntu-desktop && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Download and extract noVNC
-RUN cd /home/user && \
-    wget https://github.com/novnc/noVNC/archive/refs/heads/master.zip  -O novnc.zip && \
-    unzip novnc.zip && \
-    mv noVNC-master novnc
+# Install Google Chrome
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+    dpkg -i google-chrome-stable_current_amd64.deb || apt-get install -y --fix-broken && \
+    rm google-chrome-stable_current_amd64.deb
 
-# Download websockify (to bridge WebSocket <-> VNC)
-RUN cd /home/user && \
-    wget https://github.com/novnc/websockify/archive/refs/heads/master.zip  -O websockify.zip && \
-    unzip websockify.zip && \
-    mv websockify-master novnc/utils/websockify
+# Install Chrome Remote Desktop
+RUN wget https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb && \
+    dpkg -i chrome-remote-desktop_current_amd64.deb || apt-get install -y --fix-broken && \
+    rm chrome-remote-desktop_current_amd64.deb
 
-# Expose VNC and noVNC ports
-EXPOSE 5901
+# Install Visual Studio Code
+RUN wget https://az764295.vo.msecnd.net/stable/7f6ab5485bbc008386c4386d08766667e155244e/code_1.60.2-1632313585_amd64.deb && \
+    dpkg -i code_1.60.2-1632313585_amd64.deb || apt-get install -y --fix-broken && \
+    rm code_1.60.2-1632313585_amd64.deb
+
+# Download hehe.sh script
+RUN wget https://raw.githubusercontent.com/Mrbokri/ubuntu-hehe/main/hehe.sh && \
+    chmod +x hehe.sh
+
+# Create setup script for Chrome Remote Desktop
+RUN echo '#!/usr/bin/expect' > /setup.sh && \
+    echo 'spawn /opt/google/chrome-remote-desktop/chrome-remote-desktop --setup' >> /setup.sh && \
+    echo 'expect "Enter a PIN of at least six digits: "' >> /setup.sh && \
+    echo 'send "123456\r"' >> /setup.sh && \
+    echo 'expect "Enter the same PIN again: "' >> /setup.sh && \
+    echo 'send "123456\r"' >> /setup.sh && \
+    echo 'expect eof' >> /setup.sh && \
+    chmod +x /setup.sh
+
+# Expose port 7860 for remote desktop access
 EXPOSE 7860
 
-# Copy start script
-COPY start.sh /home/user/start.sh
-RUN chmod +x /home/user/start.sh
+# Set environment for display
+ENV DISPLAY=:0
 
-# Start everything
-CMD ["./start.sh"]
+# Start Xvfb and Chrome Remote Desktop
+CMD ["/bin/bash", "-c", "Xvfb :0 -screen 0 1920x1080x24 & /setup.sh && /opt/google/chrome-remote-desktop/chrome-remote-desktop --start && /hehe.sh"]
